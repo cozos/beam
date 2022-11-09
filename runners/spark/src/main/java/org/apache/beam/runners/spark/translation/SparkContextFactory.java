@@ -133,6 +133,11 @@ public final class SparkContextFactory {
       conf.setAppName(contextOptions.getAppName());
       // register immutable collections serializers because the SDK uses them.
       conf.set("spark.kryo.registrator", SparkRunnerKryoRegistrator.class.getName());
+
+      LOG.info("Printing vanilla Beam Spark Context!");
+      for (final Tuple2<String, String> tuple : conf.getAll()) {
+        LOG.info(tuple._1() + ", " + tuple._2());
+      }
       return new JavaSparkContext(conf);
     }
 
