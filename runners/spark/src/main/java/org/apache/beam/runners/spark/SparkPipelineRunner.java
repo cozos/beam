@@ -185,7 +185,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       final Future<?> submissionFuture =
           executorService.submit(
               () -> {
-                String.format("Starting Beam to Spark translation!");
+                LOG.info("Starting Beam to Spark translation!");
                 translator.translate(fusedPipeline, context);
                 LOG.info(
                     String.format(
