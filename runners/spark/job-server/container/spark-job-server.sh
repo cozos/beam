@@ -25,5 +25,5 @@
 # a PID > 1 is created which handles signals. After the command shuts down, the script and
 # thus the container will also exit.
 
-java -cp "jars/*" org.apache.beam.runners.spark.SparkJobServerDriver "$@" &
+java -cp "jars/*" org.apache.beam.runners.spark.ArwinServerDriver "$@" &
 wait

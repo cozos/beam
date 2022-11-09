@@ -25,7 +25,7 @@ import org.apache.beam.gradle.BeamModulePlugin
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
-mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
+mainClassName = "org.apache.beam.runners.spark.ArwinServerDriver"
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.spark.jobserver',

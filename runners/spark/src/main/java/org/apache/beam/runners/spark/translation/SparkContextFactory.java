@@ -17,10 +17,14 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import java.util.Arrays;
+import scala.Tuple2;
+
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.SparkRunnerKryoRegistrator;
 import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +72,37 @@ public final class SparkContextFactory {
     }
   }
 
+  // See https://docs.databricks.com/workflows/jobs/jobs.html#use-the-shared-sparkcontext
+  public static synchronized JavaSparkContext getDatabricksSparkContext(SparkPipelineOptions options) {
+      SparkContextOptions contextOptions = options.as(SparkContextOptions.class);
+
+      // Honestly not sure what the synchronized stuff is about.
+      if (sparkContext == null || sparkContext.sc().isStopped()) {
+        SparkContext dbxSparkContext = SparkContext.getOrCreate();
+
+        // Add files to stage.
+        if (contextOptions.getFilesToStage() != null && !contextOptions.getFilesToStage().isEmpty()) {
+          LOG.info("Staging {} files to Databricks SparkContext", contextOptions.getFilesToStage().size());
+          for (String fileToStage : contextOptions.getFilesToStage()) {
+            LOG.info("Staging {} to Databricks SparkContext...", fileToStage);
+            dbxSparkContext.addJar(fileToStage);
+          }
+        } else {
+          LOG.info("There are no files to stage to DatabricksSparkContext");
+        }
+
+        LOG.info("Printing Databricks Spark Context!");
+        for (final Tuple2<String, String> tuple : dbxSparkContext.getConf().getAll()) {
+          LOG.info(tuple._1() + ", " + tuple._2());
+        }
+
+        sparkContext = new JavaSparkContext(dbxSparkContext);
+        sparkMaster = options.getSparkMaster();
+      }
+
+      return sparkContext;
+  }
+
   public static synchronized void stopSparkContext(JavaSparkContext context) {
     if (!Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT) && !usesProvidedSparkContext) {
       context.stop();
@@ -100,5 +135,6 @@ public final class SparkContextFactory {
       conf.set("spark.kryo.registrator", SparkRunnerKryoRegistrator.class.getName());
       return new JavaSparkContext(conf);
     }
+
   }
 }
