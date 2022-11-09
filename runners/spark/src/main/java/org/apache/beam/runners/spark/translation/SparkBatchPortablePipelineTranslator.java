@@ -124,11 +124,16 @@ public class SparkBatchPortablePipelineTranslator
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
     for (PipelineNode.PTransformNode transformNode : p.getTopologicallyOrderedTransforms()) {
+      LOG.info("Preprocessing transform: {}", transformNode.getTransform().getSpec().getUrn());
+
       // Pre-scan pipeline to count which pCollections are consumed as inputs more than once so
       // their corresponding RDDs can later be cached.
       for (String inputId : transformNode.getTransform().getInputsMap().values()) {
+        LOG.info("Prescanning input {}", inputId);
         context.incrementConsumptionCountBy(inputId, 1);
       }
+      LOG.info("Finished prescanning for RDD caching of pcollection inputs");
+
       // Executable stage consists of two parts: computation and extraction. This means the result
       // of computation is an intermediate RDD, which we might also need to cache.
       if (transformNode.getTransform().getSpec().getUrn().equals(ExecutableStage.URN)) {
@@ -136,12 +141,16 @@ public class SparkBatchPortablePipelineTranslator
             getExecutableStageIntermediateId(transformNode),
             transformNode.getTransform().getOutputsMap().size());
       }
+      LOG.info("Finished prescanning for RDD caching of intermediate results");
+
       for (String outputId : transformNode.getTransform().getOutputsMap().values()) {
         WindowedValueCoder outputCoder = getWindowedValueCoder(outputId, pipeline.getComponents());
         context.putCoder(outputId, outputCoder);
       }
     }
     for (PipelineNode.PTransformNode transformNode : p.getTopologicallyOrderedTransforms()) {
+      LOG.info("Actually translating: {}", transformNode.getTransform().getSpec().getUrn());
+
       urnToTransformTranslator
           .getOrDefault(
               transformNode.getTransform().getSpec().getUrn(),
@@ -160,14 +169,17 @@ public class SparkBatchPortablePipelineTranslator
 
   private static void translateImpulse(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
+    LOG.info("Running 'translateImpulse' on {}", transformNode.getTransform().getSpec().getUrn());
     BoundedDataset<byte[]> output =
         new BoundedDataset<>(
             Collections.singletonList(new byte[0]), context.getSparkContext(), ByteArrayCoder.of());
     context.pushDataset(getOutputId(transformNode), output);
+    LOG.info("Finished 'translateImpulse' on {}", transformNode.getTransform().getSpec().getUrn());
   }
 
   private static <K, V> void translateGroupByKey(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
+    LOG.info("Running 'translateGroupByKey' on {}", transformNode.getTransform().getSpec().getUrn());
 
     RunnerApi.Components components = pipeline.getComponents();
     String inputId = getInputId(transformNode);
@@ -208,10 +220,13 @@ public class SparkBatchPortablePipelineTranslator
                   context.serializablePipelineOptions));
     }
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(groupedByKeyAndWindow));
+
+    LOG.info("Finished 'translateGroupByKey' on {}", transformNode.getTransform().getSpec().getUrn());
   }
 
   private static <InputT, OutputT, SideInputT> void translateExecutableStage(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
+    LOG.info("Translating 'translateExecutableStage' on {}", transformNode.getTransform().getSpec().getUrn());
 
     RunnerApi.ExecutableStagePayload stagePayload;
     try {
@@ -323,6 +338,8 @@ public class SparkBatchPortablePipelineTranslator
           String.format("EmptyOutputSink_%d", context.nextSinkId()),
           new BoundedDataset<>(outputRdd));
     }
+
+    LOG.info("Finished 'translateExecutableStage' on {}", transformNode.getTransform().getSpec().getUrn());
   }
 
   /** Wrapper to help with type inference for {@link GroupCombineFunctions#groupByKeyPair}. */
@@ -377,6 +394,7 @@ public class SparkBatchPortablePipelineTranslator
 
   private static <T> void translateFlatten(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
+    LOG.info("Translating 'translateFlatten' on {}", transformNode.getTransform().getSpec().getUrn());
 
     Map<String, String> inputsMap = transformNode.getTransform().getInputsMap();
 
@@ -393,15 +411,21 @@ public class SparkBatchPortablePipelineTranslator
       unionRDD = context.getSparkContext().union(rdds);
     }
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(unionRDD));
+
+    LOG.info("Finished 'translateFlatten' on {}", transformNode.getTransform().getSpec().getUrn());
   }
 
   private static <T> void translateReshuffle(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
+    LOG.info("Translating 'translateReshuffle' on {}", transformNode.getTransform().getSpec().getUrn());
+
     String inputId = getInputId(transformNode);
     WindowedValueCoder<T> coder = getWindowedValueCoder(inputId, pipeline.getComponents());
     JavaRDD<WindowedValue<T>> inRDD = ((BoundedDataset<T>) context.popDataset(inputId)).getRDD();
     JavaRDD<WindowedValue<T>> reshuffled = GroupCombineFunctions.reshuffle(inRDD, coder);
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(reshuffled));
+
+    LOG.info("Finished 'translateExecutableStage' on {}", transformNode.getTransform().getSpec().getUrn());
   }
 
   private static @Nullable Partitioner getPartitioner(SparkTranslationContext context) {
