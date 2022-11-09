@@ -80,7 +80,12 @@ runShadow {
   systemProperties System.properties
 
   // Enable remote debugging.
-  jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
+  jvmArgs = [
+    "-Xdebug",
+    "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005",
+    "-Xmx2048",
+    "-XX:-OmitStackTraceInFastThrow"
+  ]
   if (project.hasProperty("logLevel"))
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
