@@ -83,7 +83,7 @@ runShadow {
   jvmArgs = [
     "-Xdebug",
     "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005",
-    "-Xmx2048",
+    "-Xmx2048m",
     "-XX:-OmitStackTraceInFastThrow"
   ]
   if (project.hasProperty("logLevel"))
