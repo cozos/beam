@@ -830,6 +830,11 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Werror'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+        options.compilerArgs.addAll(['--release', '8'])
+
+        doFirst {
+          println "compileJava for $name has args: $options.compilerArgs"
+        }
       }
 
       project.tasks.withType(Jar).configureEach {
