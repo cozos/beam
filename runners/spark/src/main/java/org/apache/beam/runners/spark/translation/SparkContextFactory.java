@@ -99,7 +99,7 @@ public final class SparkContextFactory {
         }
 
         sparkContext = JavaSparkContext.fromSparkContext(dbxSparkContext);
-        sparkMaster = jsc.master();
+        sparkMaster = sparkContext.master();
       }
 
       return sparkContext;
