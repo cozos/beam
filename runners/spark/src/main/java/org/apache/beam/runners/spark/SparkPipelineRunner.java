@@ -115,7 +115,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     prepareFilesToStage(pipelineOptions);
     PortablePipelineResult result;
-    final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
+    final JavaSparkContext jsc = SparkContextFactory.getDatabricksSparkContext(pipelineOptions);
 
     final long startTime = Instant.now().getMillis();
     EventLoggingListener eventLoggingListener =

@@ -74,10 +74,12 @@ public final class SparkContextFactory {
 
   // See https://docs.databricks.com/workflows/jobs/jobs.html#use-the-shared-sparkcontext
   public static synchronized JavaSparkContext getDatabricksSparkContext(SparkPipelineOptions options) {
+      LOG.info("Entering JavaSparkContext...");
       SparkContextOptions contextOptions = options.as(SparkContextOptions.class);
 
       // Honestly not sure what the synchronized stuff is about.
       if (sparkContext == null || sparkContext.sc().isStopped()) {
+        // THIS IS THE IMPORTANT THING. Get the static SparkContext.
         SparkContext dbxSparkContext = SparkContext.getOrCreate();
 
         // Add files to stage.
@@ -96,7 +98,7 @@ public final class SparkContextFactory {
           LOG.info(tuple._1() + ", " + tuple._2());
         }
 
-        sparkContext = new JavaSparkContext(dbxSparkContext);
+        sparkContext = JavaSparkContext.fromSparkContext(dbxSparkContext);
         sparkMaster = options.getSparkMaster();
       }
 
