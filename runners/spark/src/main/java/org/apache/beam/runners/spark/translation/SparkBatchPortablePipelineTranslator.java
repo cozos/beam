@@ -287,9 +287,10 @@ public class SparkBatchPortablePipelineTranslator
       }
 
       LOG.info(
-        "==> ARWINLOGS: Running groupByKey on transformNode {}, {}, input: {}, transforms: {}, with userstates {}: and timers: {}",
+        "==> ARWINLOGS: Running groupByKey on transformNode {}, {}, {}, input: {}, transforms: {}, with userstates {}: and timers: {}",
         transformNode.getId(),
         transformNode.getTransform().getUniqueName(),
+        transformNode.getTransform().getSpec().getUrn(),
         inputPCollectionId,
         stagePayload.getTransformsList(),
         userStatesStr,
