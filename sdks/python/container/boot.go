@@ -58,6 +58,7 @@ var (
 	provisionEndpoint = flag.String("provision_endpoint", "", "Provision endpoint (required).")
 	controlEndpoint   = flag.String("control_endpoint", "", "Control endpoint (required).")
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
+	pythonPath        = flag.String("python_path", "python", "Local semi-persistent directory (optional).")
 )
 
 const (
@@ -92,7 +93,7 @@ func main() {
 			"--container_executable=/opt/apache/beam/boot",
 		}
 		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
-		log.Fatalf("Python SDK worker pool exited: %v", execx.Execute("python", args...))
+		log.Fatalf("Python SDK worker pool exited: %v", execx.Execute(*pythonPath, args...))
 	}
 
 	if *id == "" {
@@ -100,6 +101,11 @@ func main() {
 	}
 	if *provisionEndpoint == "" {
 		log.Fatal("No provision endpoint provided.")
+	}
+	if *pythonPath == "" {
+		log.Fatal("No python_path provided.")
+	} else {
+		log.Printf("Using python_path %v.", *pythonPath)
 	}
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
@@ -211,7 +217,7 @@ func main() {
 	for _, workerId := range workerIds {
 		go func(workerId string) {
 			log.Printf("Executing: python %v", strings.Join(args, " "))
-			log.Fatalf("Python exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "python", args...))
+			log.Fatalf("Python exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, *pythonPath, args...))
 			wg.Done()
 		}(workerId)
 	}
@@ -220,7 +226,7 @@ func main() {
 
 // setup wheel specs according to installed python version
 func setupAcceptableWheelSpecs() error {
-	cmd := exec.Command("python", "-V")
+	cmd := exec.Command(*pythonPath, "-V")
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
 		return err

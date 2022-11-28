@@ -81,6 +81,10 @@ public final class SparkContextFactory {
       if (sparkContext == null || sparkContext.sc().isStopped()) {
         // THIS IS THE IMPORTANT THING. Get the static SparkContext.
         SparkContext dbxSparkContext = SparkContext.getOrCreate();
+        // See https://stackoverflow.com/a/65616752/800735
+        try {
+          Thread.sleep(3000);
+        } catch (InterruptedException e) {}
 
         // Add files to stage.
         if (contextOptions.getFilesToStage() != null && !contextOptions.getFilesToStage().isEmpty()) {
@@ -93,10 +97,12 @@ public final class SparkContextFactory {
           LOG.info("There are no files to stage to DatabricksSparkContext");
         }
 
-        LOG.info("Printing Databricks Spark Context!");
+        LOG.info("==> ARWINLOGS: Printing ALL Databricks Spark Context!");
         for (final Tuple2<String, String> tuple : dbxSparkContext.getConf().getAll()) {
           LOG.info(tuple._1() + ", " + tuple._2());
         }
+
+        LOG.info("==> ARWINLOGS: defaultParallelism is: {}", dbxSparkContext.defaultParallelism());
 
         sparkContext = JavaSparkContext.fromSparkContext(dbxSparkContext);
         sparkMaster = sparkContext.master();

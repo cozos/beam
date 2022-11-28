@@ -145,6 +145,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = () -> factoryId + "-" + stageIdSuffixGenerator.getId();
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
+    LOG.info("==> ARWINLOGS: loadBalanceBundles is: {}", this.loadBalanceBundles);
     this.environmentCaches =
         createEnvironmentCaches(
             serverFactory -> createServerInfo(jobInfo, serverFactory),
@@ -166,6 +167,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = stageIdGenerator;
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
+    LOG.info("==> ARWINLOGS: loadBalanceBundles is: {}", this.loadBalanceBundles);
     this.environmentCaches =
         createEnvironmentCaches(serverFactory -> serverInfo, getMaxEnvironmentClients(jobInfo));
     this.availableCachesSemaphore = new Semaphore(environmentCaches.size(), true);
@@ -281,8 +283,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private static boolean shouldLoadBalanceBundles(JobInfo jobInfo) {
     PipelineOptions pipelineOptions =
         PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
-    boolean loadBalanceBundles =
-        pipelineOptions.as(PortablePipelineOptions.class).getLoadBalanceBundles();
+
+    boolean loadBalanceBundles = true;
     if (loadBalanceBundles) {
       int stateCacheSize =
           Integer.parseInt(

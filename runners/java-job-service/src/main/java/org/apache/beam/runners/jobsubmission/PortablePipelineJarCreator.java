@@ -169,6 +169,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     Pipeline.Builder result = pipeline.toBuilder();
     for (Map.Entry<String, RunnerApi.Environment> env :
         pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      LOG.info("Writing artifacts for key: {}, environment: {}", env.getKey(), env.getValue().toString());
       result
           .getComponentsBuilder()
           .putEnvironments(env.getKey(), writeArtifacts(env.getValue(), jobName));
@@ -185,6 +186,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     RunnerApi.Environment.Builder result = environment.toBuilder();
     result.clearDependencies();
     for (RunnerApi.ArtifactInformation artifact : environment.getDependenciesList()) {
+      LOG.info("ArtifactInformation: {}", artifact.toString());
       result.addDependencies(writeArtifact(artifact, jobName));
     }
     return result.build();
@@ -197,6 +199,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   private RunnerApi.ArtifactInformation writeArtifact(
       RunnerApi.ArtifactInformation artifact, String jobName) throws IOException {
     String path = PortablePipelineJarUtils.getArtifactUri(jobName, UUID.randomUUID().toString());
+    LOG.info("Copying artifact {} to {}", artifact, path);
     LOG.trace("Copying artifact {} to {}", artifact, path);
     outputStream.putNextEntry(new JarEntry(path));
     try (InputStream artifactStream = ArtifactRetrievalService.getArtifact(artifact)) {
