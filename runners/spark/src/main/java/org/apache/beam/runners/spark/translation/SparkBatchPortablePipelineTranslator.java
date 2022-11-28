@@ -169,7 +169,7 @@ public class SparkBatchPortablePipelineTranslator
 
   private static void translateImpulse(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    LOG.info("Running 'translateImpulse' on {}", transformNode.getTransform().getSpec().getUrn());
+    LOG.info("==> ARWINLOGS: Translating 'translateImpulse' on {}", transformNode.getTransform().getSpec().getUrn());
     BoundedDataset<byte[]> output =
         new BoundedDataset<>(
             Collections.singletonList(new byte[0]), context.getSparkContext(), ByteArrayCoder.of());
@@ -179,10 +179,15 @@ public class SparkBatchPortablePipelineTranslator
 
   private static <K, V> void translateGroupByKey(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    LOG.info("Running 'translateGroupByKey' on {}", transformNode.getTransform().getSpec().getUrn());
-
     RunnerApi.Components components = pipeline.getComponents();
     String inputId = getInputId(transformNode);
+    LOG.info(
+      "==> ARWINLOGS: Translating 'translateGroupByKey' on urn: {}, uniqueName: {}, functionSpec: {}, inputId: {}",
+      transformNode.getTransform().getSpec().getUrn(),
+      transformNode.getTransform().getUniqueName(),
+      transformNode.getTransform().getSpec().getUrn(),
+      inputId
+    );
     Dataset inputDataset = context.popDataset(inputId);
     JavaRDD<WindowedValue<KV<K, V>>> inputRdd = ((BoundedDataset<KV<K, V>>) inputDataset).getRDD();
     WindowedValueCoder<KV<K, V>> inputCoder = getWindowedValueCoder(inputId, components);
@@ -226,7 +231,7 @@ public class SparkBatchPortablePipelineTranslator
 
   private static <InputT, OutputT, SideInputT> void translateExecutableStage(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    LOG.info("Translating 'translateExecutableStage' on {}", transformNode.getTransform().getSpec().getUrn());
+    LOG.info("==> ARWINLOGS: Translating 'translateExecutableStage' on {}", transformNode.getTransform().getSpec().getUrn());
 
     RunnerApi.ExecutableStagePayload stagePayload;
     try {
@@ -420,7 +425,7 @@ public class SparkBatchPortablePipelineTranslator
 
   private static <T> void translateFlatten(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    LOG.info("Translating 'translateFlatten' on {}", transformNode.getTransform().getSpec().getUrn());
+    LOG.info("==> ARWINLOGS: Translating 'translateFlatten' on {}", transformNode.getTransform().getSpec().getUrn());
 
     Map<String, String> inputsMap = transformNode.getTransform().getInputsMap();
 
@@ -443,7 +448,7 @@ public class SparkBatchPortablePipelineTranslator
 
   private static <T> void translateReshuffle(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    LOG.info("Translating 'translateReshuffle' on {}", transformNode.getTransform().getSpec().getUrn());
+    LOG.info("==> ARWINLOGS: Translating 'translateReshuffle' on {}", transformNode.getTransform().getSpec().getUrn());
 
     String inputId = getInputId(transformNode);
     WindowedValueCoder<T> coder = getWindowedValueCoder(inputId, pipeline.getComponents());
