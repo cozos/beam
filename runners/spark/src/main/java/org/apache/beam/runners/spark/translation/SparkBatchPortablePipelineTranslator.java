@@ -269,6 +269,32 @@ public class SparkBatchPortablePipelineTranslator
       WindowedValue.WindowedValueCoder wvCoder =
           WindowedValue.FullWindowedValueCoder.of(innerValueCoder, windowFn.windowCoder());
 
+      String userStatesStr = "";
+      for (RunnerApi.ExecutableStagePayload.UserStateId u : stagePayload.getUserStatesList()) {
+          userStatesStr += "(";
+          userStatesStr += u.getTransformId();
+          userStatesStr += ",";
+          userStatesStr += u.getLocalName();
+          userStatesStr += ")";
+      }
+      String timersStr = "";
+      for (RunnerApi.ExecutableStagePayload.TimerId u : stagePayload.getTimersList()) {
+          timersStr += "(";
+          timersStr += u.getTransformId();
+          timersStr += ",";
+          timersStr += u.getLocalName();
+          timersStr += ")";
+      }
+
+      LOG.info(
+        "==> ARWINLOGS: Running groupByKey on transformNode {}, {}, input: {}, transforms: {}, with userstates {}: and timers: {}",
+        transformNode.getId(),
+        transformNode.getTransform().getUniqueName(),
+        inputPCollectionId,
+        stagePayload.getTransformsList(),
+        userStatesStr,
+        timersStr
+      );
       JavaPairRDD<ByteArray, Iterable<WindowedValue<KV>>> groupedByKey =
           groupByKeyPair(inputDataset, keyCoder, wvCoder);
       SparkExecutableStageFunction<KV, SideInputT> function =
