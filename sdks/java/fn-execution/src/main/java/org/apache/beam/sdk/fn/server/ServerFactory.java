@@ -47,7 +47,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 })
 public abstract class ServerFactory {
 
-  private static final int KEEP_ALIVE_TIME_SEC = 20;
+  // See: https://github.com/apache/beam/issues/21598#issuecomment-1323399311
+  // See: https://issues.apache.org/jira/browse/FLINK-29155
+  // See: https://github.com/apache/flink/pull/21363
+  private static final int KEEP_ALIVE_TIME_SEC = 10;
 
   /** Create a default {@link InetSocketAddressServerFactory}. */
   public static ServerFactory createDefault() {
