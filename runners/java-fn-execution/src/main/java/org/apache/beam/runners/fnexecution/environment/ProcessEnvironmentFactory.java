@@ -18,6 +18,8 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -86,14 +88,17 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     final RunnerApi.ProcessPayload processPayload =
         RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
 
-    String executable = processPayload.getCommand();
+    List<String> command = Arrays.asList(processPayload.getCommand().split(" "));
+    // LOG.info("==> ARWINLOGS: Process command is: ")
+    String executable = command.remove(0);
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
 
     String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
     ImmutableList.Builder<String> argsBuilder =
         ImmutableList.<String>builder()
             .add(String.format("--id=%s", workerId))
-            .add(String.format("--provision_endpoint=%s", provisionEndpoint));
+            .add(String.format("--provision_endpoint=%s", provisionEndpoint))
+            .addAll(command);
     if (semiPersistDir != null) {
       argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
     }
