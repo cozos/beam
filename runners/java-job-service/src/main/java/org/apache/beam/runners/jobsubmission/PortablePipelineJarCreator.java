@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Map;
@@ -41,6 +42,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.io.ClassLoaderFileSystem;
@@ -51,6 +53,7 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.apache.commons.compress.utils.IOUtils;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -93,6 +96,8 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
 
     final String jobName = jobInfo.jobName();
     File outputFile = new File(checkArgumentNotNull(pipelineOptions.getOutputExecutablePath()));
+    LOG.info("Creating pipeline dot graph");
+    renderDotPipeline(pipeline, pipelineOptions.getOutputExecutablePath());
     LOG.info("Creating jar {} for job {}", outputFile.getAbsolutePath(), jobName);
     outputStream =
         new JarOutputStream(new FileOutputStream(outputFile), createManifest(mainClass, jobName));
@@ -110,6 +115,17 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
 
     LOG.info("Jar {} created successfully.", outputFile.getAbsolutePath());
     return new JarCreatorPipelineResult();
+  }
+
+  private void renderDotPipeline(Pipeline pipeline, String jarOutputPath) {
+    String dotGraph = PipelineDotRenderer.toDotString(pipeline);
+    String dotFilePath = jarOutputPath.replace(".jar", ".dot");
+    File outputFile = new File(dotFilePath);
+    try {
+      Files.write(dotGraph.getBytes(), outputFile);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @VisibleForTesting

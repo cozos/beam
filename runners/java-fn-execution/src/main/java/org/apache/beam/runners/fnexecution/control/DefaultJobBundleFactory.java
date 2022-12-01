@@ -220,6 +220,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                           "Expiring environment {} with {} remaining bundle references. Taking note to clean it up during shutdown if the references are not removed by then.",
                           notification.getKey(),
                           refCount);
+                      LOG.info(
+                          "==> ARWINLOGS Evicting SDK Harness {} with {} remaining bundle references",
+                          client.getEnvironment().toString(),
+                          refCount);
                       evictedActiveClients.add(client);
                     }
                   });
@@ -614,6 +618,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     SdkHarnessClient getClient() {
       return client;
+    }
+
+    RemoteEnvironment getEnvironment() {
+      return this.environment;
     }
 
     ServerInfo getServerInfo() {

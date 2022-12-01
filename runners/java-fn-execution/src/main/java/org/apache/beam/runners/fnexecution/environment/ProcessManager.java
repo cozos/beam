@@ -106,10 +106,7 @@ public class ProcessManager {
   public RunningProcess startProcess(
       String id, String command, List<String> args, Map<String, String> env) throws IOException {
     final File outputFile;
-    LOG.info("==> ARWINLOGS: Starting SDK Harness process for Worker ID: {}! {} {}",
-            id,
-            command,
-            String.join(" ", args));
+    LOG.info("==> ARWINLOGS: Starting SDK Harness process for Worker ID: {}! {}", id, command);
     if (true) {
       LOG.debug(
           "==> DEBUG enabled: Inheriting stdout/stderr of process (adjustable in ProcessManager)");

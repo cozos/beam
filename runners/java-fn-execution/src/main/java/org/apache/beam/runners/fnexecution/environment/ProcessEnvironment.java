@@ -19,16 +19,21 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Environment for process-based execution. The environment is responsible for stopping the process.
  */
 public class ProcessEnvironment implements RemoteEnvironment {
 
+  private static final Logger LOG = LoggerFactory.getLogger(ProcessEnvironment.class);
+
   private final ProcessManager processManager;
   private final RunnerApi.Environment environment;
   private final String workerId;
   private final InstructionRequestHandler instructionHandler;
+  private final long createTime;
 
   private boolean isClosed;
 
@@ -50,6 +55,7 @@ public class ProcessEnvironment implements RemoteEnvironment {
     this.environment = environment;
     this.workerId = workerId;
     this.instructionHandler = instructionHandler;
+    this.createTime = System.nanoTime();
   }
 
   @Override
@@ -63,12 +69,20 @@ public class ProcessEnvironment implements RemoteEnvironment {
   }
 
   @Override
+  public String toString() {
+    double duration = (double)(System.nanoTime() - this.createTime) / 60_000_000_000.0;
+    return "Worker ID: " + workerId + " Lifetime: " + duration + " minutes";
+  }
+
+  @Override
   public synchronized void close() throws Exception {
     if (isClosed) {
       return;
     }
     Exception exception = null;
     try {
+      double duration = (double)(System.nanoTime() - this.createTime) / 60_000_000_000.0;
+      LOG.info("==> ARWINLOGS: Killing SDK Harness process with Worker ID: {}! Lifetime: {}", workerId, duration);
       processManager.stopProcess(workerId);
     } catch (Exception e) {
       exception = e;

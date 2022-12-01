@@ -128,6 +128,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       }
     } catch (Exception e) {
       try {
+        LOG.info("==> ARWINLOGS: Due to startup exception SDK Harness process with Worker ID: {}!", workerId);
         processManager.stopProcess(workerId);
       } catch (Exception processKillException) {
         e.addSuppressed(processKillException);
