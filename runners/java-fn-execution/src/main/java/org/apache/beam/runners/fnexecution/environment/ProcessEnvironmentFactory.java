@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -88,8 +89,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     final RunnerApi.ProcessPayload processPayload =
         RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
 
-    List<String> command = Arrays.asList(processPayload.getCommand().split(" "));
-    // LOG.info("==> ARWINLOGS: Process command is: ")
+    List<String> command = new ArrayList<>(Arrays.asList(processPayload.getCommand().split(" ")));
     String executable = command.remove(0);
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
 
