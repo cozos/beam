@@ -122,7 +122,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     String dotFilePath = jarOutputPath.replace(".jar", ".dot");
     File outputFile = new File(dotFilePath);
     try {
-      Files.write(dotGraph.getBytes(), outputFile);
+      Files.write(dotGraph.getBytes(StandardCharsets.UTF_8), outputFile);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
