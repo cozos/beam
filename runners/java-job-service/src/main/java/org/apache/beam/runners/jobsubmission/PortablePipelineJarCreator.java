@@ -96,7 +96,6 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
 
     final String jobName = jobInfo.jobName();
     File outputFile = new File(checkArgumentNotNull(pipelineOptions.getOutputExecutablePath()));
-    LOG.info("Creating pipeline dot graph");
     renderDotPipeline(pipeline, pipelineOptions.getOutputExecutablePath());
     LOG.info("Creating jar {} for job {}", outputFile.getAbsolutePath(), jobName);
     outputStream =
@@ -121,6 +120,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     String dotGraph = PipelineDotRenderer.toDotString(pipeline);
     String dotFilePath = jarOutputPath.replace(".jar", ".dot");
     File outputFile = new File(dotFilePath);
+    LOG.info("Creating pipeline dot graph at {}", outputFile.getAbsolutePath());
     try {
       Files.write(dotGraph.getBytes(StandardCharsets.UTF_8), outputFile);
     } catch (IOException e) {
