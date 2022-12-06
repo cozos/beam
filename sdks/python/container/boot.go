@@ -59,6 +59,7 @@ var (
 	controlEndpoint   = flag.String("control_endpoint", "", "Control endpoint (required).")
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
 	pythonPath        = flag.String("python_path", "python", "Local semi-persistent directory (optional).")
+	useMemray         = flag.Bool("use_memray", true, "Use memory profiling.")
 )
 
 const (
@@ -206,9 +207,20 @@ func main() {
 		}
 	}
 
-	args := []string{
-		"-m",
-		sdkHarnessEntrypoint,
+	if *useMemray {
+		args := []string{
+			"-m",
+			"memray",
+			"run",
+			"-f",
+			"-m",
+			sdkHarnessEntrypoint,
+		}
+	} else {
+		args := []string{
+			"-m",
+			sdkHarnessEntrypoint,
+		}
 	}
 
 	workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
