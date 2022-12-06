@@ -207,8 +207,9 @@ func main() {
 		}
 	}
 
+	var args []string
 	if *useMemray {
-		args := []string{
+		args = []string{
 			"-m",
 			"memray",
 			"run",
@@ -217,7 +218,7 @@ func main() {
 			sdkHarnessEntrypoint,
 		}
 	} else {
-		args := []string{
+		args = []string{
 			"-m",
 			sdkHarnessEntrypoint,
 		}
