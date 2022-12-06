@@ -209,10 +209,13 @@ func main() {
 
 	var args []string
 	if *useMemray {
+		profileOutputsPath := fmt.Sprintf("/tmp/memray-profile.worker-%s.pid-%d.bin", *id, os.Getpid())
 		args = []string{
 			"-m",
 			"memray",
 			"run",
+			"-o",
+			profileOutputsPath,
 			"-f",
 			"-m",
 			sdkHarnessEntrypoint,
