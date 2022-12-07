@@ -214,8 +214,6 @@ func main() {
 			"-m",
 			"memray",
 			"run",
-			"--split-threads",
-			"--leaks",
 			"--native",
 			"-o",
 			profileOutputsPath,
