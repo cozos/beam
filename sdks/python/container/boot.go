@@ -214,7 +214,6 @@ func main() {
 			"-m",
 			"memray",
 			"run",
-			"--native",
 			"-o",
 			profileOutputsPath,
 			"-f",
