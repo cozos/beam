@@ -18,7 +18,10 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
+
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -114,6 +117,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final Set<WrappedSdkHarnessClient> evictedActiveClients;
 
   private boolean closed;
+  private String hostname;
 
   public static DefaultJobBundleFactory create(JobInfo jobInfo) {
     PipelineOptions pipelineOptions =
@@ -145,7 +149,14 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = () -> factoryId + "-" + stageIdSuffixGenerator.getId();
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
-    LOG.info("==> ARWINLOGS: loadBalanceBundles is: {}", this.loadBalanceBundles);
+    try {
+      this.hostname = new BufferedReader(
+        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
+       .readLine();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    LOG.info("==> ARWINLOGS: ({}) loadBalanceBundles is: {}", this.hostname, this.loadBalanceBundles);
     this.environmentCaches =
         createEnvironmentCaches(
             serverFactory -> createServerInfo(jobInfo, serverFactory),
@@ -167,7 +178,15 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = stageIdGenerator;
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
-    LOG.info("==> ARWINLOGS: loadBalanceBundles is: {}", this.loadBalanceBundles);
+
+    try {
+      this.hostname = new BufferedReader(
+        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
+       .readLine();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    LOG.info("==> ARWINLOGS: ({}) loadBalanceBundles is: {}", hostname, this.loadBalanceBundles);
     this.environmentCaches =
         createEnvironmentCaches(serverFactory -> serverInfo, getMaxEnvironmentClients(jobInfo));
     this.availableCachesSemaphore = new Semaphore(environmentCaches.size(), true);
@@ -188,6 +207,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private ImmutableList<EnvironmentCacheAndLock> createEnvironmentCaches(
       ThrowingFunction<ServerFactory, ServerInfo> serverInfoCreator, int count) {
 
+    LOG.info("==> ARWINLOGS: ({}) Creating Environment Cache with SDK Harnesses: {}", this.hostname, count);
     ImmutableList.Builder<EnvironmentCacheAndLock> caches = ImmutableList.builder();
     for (int i = 0; i < count; i++) {
 
@@ -221,7 +241,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                           notification.getKey(),
                           refCount);
                       LOG.info(
-                          "==> ARWINLOGS Evicting SDK Harness {} with {} remaining bundle references",
+                          "==> ARWINLOGS: ({}) Evicting SDK Harness {} with {} remaining bundle references",
+                          this.hostname,
                           client.getEnvironment().toString(),
                           refCount);
                       evictedActiveClients.add(client);

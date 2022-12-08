@@ -30,12 +30,24 @@ import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
 /** Driver program that starts a job server for the Spark runner. */
 public class ArwinServerDriver extends JobServerDriver {
 
   private static final Logger LOG = LoggerFactory.getLogger(ArwinServerDriver.class);
 
   public static void main(String[] args) {
+    try {
+      String hostname = new BufferedReader(
+        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
+       .readLine();
+      LOG.info("ARWIN'S HOSTNAME: {}", hostname);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     LOG.info("We are in Arwin's world!");
 
     PipelineOptions options = PipelineOptionsFactory.create();

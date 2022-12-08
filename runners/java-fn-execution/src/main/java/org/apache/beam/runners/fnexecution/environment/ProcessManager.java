@@ -20,8 +20,11 @@ package org.apache.beam.runners.fnexecution.environment;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -106,7 +109,15 @@ public class ProcessManager {
   public RunningProcess startProcess(
       String id, String command, List<String> args, Map<String, String> env) throws IOException {
     final File outputFile;
-    LOG.info("==> ARWINLOGS: Starting SDK Harness process for Worker ID: {}! {}", id, command);
+    String hostname;
+    try {
+      hostname = new BufferedReader(
+        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
+       .readLine();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    LOG.info("==> ARWINLOGS: ({}) Starting SDK Harness process for Worker ID: {}! {}", hostname, id, command);
     if (true) {
       LOG.debug(
           "==> DEBUG enabled: Inheriting stdout/stderr of process (adjustable in ProcessManager)");
