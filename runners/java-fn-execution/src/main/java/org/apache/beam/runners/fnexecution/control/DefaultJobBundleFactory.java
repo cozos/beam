@@ -153,6 +153,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       this.hostname = new BufferedReader(
         new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
        .readLine();
+       this.hostname = this.hostname.split(" ")[0];
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -183,6 +184,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       this.hostname = new BufferedReader(
         new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
        .readLine();
+      this.hostname = this.hostname.split(" ")[0];
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

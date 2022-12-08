@@ -44,6 +44,7 @@ public class ArwinServerDriver extends JobServerDriver {
       String hostname = new BufferedReader(
         new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
        .readLine();
+      hostname = hostname.split(" ")[0];
       LOG.info("ARWIN'S HOSTNAME: {}", hostname);
     } catch (IOException e) {
       throw new RuntimeException(e);
