@@ -1,5 +1,6 @@
 package org.apache.beam.runners.spark;
 
+import com.google.common.base.Charsets;
 import org.apache.spark.SparkContext;
 
 import java.io.BufferedReader;
