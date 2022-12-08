@@ -17,16 +17,17 @@
  */
 package org.apache.beam.runners.spark;
 
+import com.google.common.base.Charsets;
+import com.google.common.base.Splitter;
 import org.apache.beam.runners.jobsubmission.JobServerDriver;
-import org.apache.beam.runners.spark.SparkJobServerDriver;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,9 +43,9 @@ public class ArwinServerDriver extends JobServerDriver {
   public static void main(String[] args) {
     try {
       String hostname = new BufferedReader(
-        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
+        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream(), Charsets.UTF_8))
        .readLine();
-      hostname = hostname.split(" ")[0];
+      hostname = Iterables.get(Splitter.on(' ').split(hostname), 0);
       LOG.info("ARWIN'S HOSTNAME: {}", hostname);
     } catch (IOException e) {
       throw new RuntimeException(e);

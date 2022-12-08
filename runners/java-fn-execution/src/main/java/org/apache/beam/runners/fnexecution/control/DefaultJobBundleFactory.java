@@ -34,6 +34,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.concurrent.ThreadSafe;
+
+import com.google.common.base.Charsets;
+import com.google.common.base.Splitter;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
@@ -151,9 +154,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
     try {
       this.hostname = new BufferedReader(
-        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
+        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream(), Charsets.UTF_8))
        .readLine();
-       this.hostname = this.hostname.split(" ")[0];
+       this.hostname = Iterables.get(Splitter.on(' ').split(hostname), 0);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -182,9 +185,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     try {
       this.hostname = new BufferedReader(
-        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
+        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream(), Charsets.UTF_8))
        .readLine();
-      this.hostname = this.hostname.split(" ")[0];
+      this.hostname = Iterables.get(Splitter.on(' ').split(hostname), 0);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -19,6 +19,9 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Charsets;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.io.BufferedReader;
@@ -111,10 +114,10 @@ public class ProcessManager {
     final File outputFile;
     String hostname;
     try {
-      hostname = new BufferedReader(
-        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream()))
+       hostname = new BufferedReader(
+        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream(), Charsets.UTF_8))
        .readLine();
-       hostname = hostname.split(" ")[0];
+       hostname = Iterables.get(Splitter.on(' ').split(hostname), 0);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
