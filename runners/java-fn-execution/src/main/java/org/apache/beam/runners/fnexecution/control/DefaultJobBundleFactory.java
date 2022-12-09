@@ -30,6 +30,7 @@ import java.lang.reflect.Method;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -128,18 +129,21 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   private boolean closed;
 
-  public static int getCurrentProcessId() {
+  public static String getCurrentProcessId() {
     try {
-      RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
-      Field jvm = runtime.getClass().getDeclaredField("jvm");
-      jvm.setAccessible(true);
+      String[] commands = new String[]{"/bin/bash", "-c", "echo $PPID"};
+      ProcessBuilder pb = new ProcessBuilder(commands);
 
-      VMManagement management = (VMManagement) jvm.get(runtime);
-      Method method = management.getClass().getDeclaredMethod("getProcessId");
-      method.setAccessible(true);
+      Process pr=pb.start();
+      pr.waitFor();
 
-      return (Integer) method.invoke(management);
-    } catch(NoSuchFieldException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+      if (pr.exitValue()==0) {
+        BufferedReader outReader=new BufferedReader(new InputStreamReader(pr.getInputStream()));
+        return outReader.readLine().trim();
+      } else {
+        throw new RuntimeException("Error while getting PID");
+      }
+    } catch(IOException | InterruptedException e) {
       throw new RuntimeException(e);
     }
   }
