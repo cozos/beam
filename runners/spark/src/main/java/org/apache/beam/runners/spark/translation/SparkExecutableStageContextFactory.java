@@ -35,7 +35,7 @@ import static org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactor
  * safe to release the backing environment asynchronously.
  */
 public class SparkExecutableStageContextFactory implements ExecutableStageContext.Factory {
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkExecutableStageContextFactory.class);
 
   private static final SparkExecutableStageContextFactory instance =
       new SparkExecutableStageContextFactory();
