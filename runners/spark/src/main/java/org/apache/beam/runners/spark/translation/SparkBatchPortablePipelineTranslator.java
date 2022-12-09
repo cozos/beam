@@ -231,8 +231,6 @@ public class SparkBatchPortablePipelineTranslator
 
   private static <InputT, OutputT, SideInputT> void translateExecutableStage(
       PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
-    LOG.info("==> ARWINLOGS: Translating 'translateExecutableStage' on {}", transformNode.getTransform().getSpec().getUrn());
-
     RunnerApi.ExecutableStagePayload stagePayload;
     try {
       stagePayload =
@@ -242,6 +240,12 @@ public class SparkBatchPortablePipelineTranslator
       throw new RuntimeException(e);
     }
     String inputPCollectionId = stagePayload.getInput();
+    LOG.info("==> ARWINLOGS: Translating 'translateExecutableStage' on id: {}, uniqueName: {}, urn: {}, input: {}, transforms: {}",
+        transformNode.getId(),
+        transformNode.getTransform().getUniqueName(),
+        transformNode.getTransform().getSpec().getUrn(),
+        inputPCollectionId,
+        stagePayload.getTransformsList());
     Dataset inputDataset = context.popDataset(inputPCollectionId);
     Map<String, String> outputs = transformNode.getTransform().getOutputsMap();
     BiMap<String, Integer> outputExtractionMap = createOutputMap(outputs.values());
@@ -292,7 +296,7 @@ public class SparkBatchPortablePipelineTranslator
       }
 
       LOG.info(
-        "==> ARWINLOGS: Running groupByKey on transformNode {}, {}, {}, input: {}, transforms: {}, with userstates {}: and timers: {}",
+        "==> ARWINLOGS: Translating ExecutableStage groupByKey on transformNode {}, {}, {}, input: {}, transforms: {}, with userstates {}: and timers: {}",
         transformNode.getId(),
         transformNode.getTransform().getUniqueName(),
         transformNode.getTransform().getSpec().getUrn(),
@@ -312,7 +316,8 @@ public class SparkBatchPortablePipelineTranslator
               SparkExecutableStageContextFactory.getInstance(),
               broadcastVariables,
               MetricsAccumulator.getInstance(),
-              windowCoder);
+              windowCoder,
+              transformNode.getTransform().getUniqueName());
       staged = groupedByKey.flatMap(function.forPair());
     } else {
       JavaRDD<WindowedValue<InputT>> inputRdd2 = ((BoundedDataset<InputT>) inputDataset).getRDD();
@@ -325,7 +330,8 @@ public class SparkBatchPortablePipelineTranslator
               SparkExecutableStageContextFactory.getInstance(),
               broadcastVariables,
               MetricsAccumulator.getInstance(),
-              windowCoder);
+              windowCoder,
+              transformNode.getTransform().getUniqueName());
       staged = inputRdd2.mapPartitions(function2);
     }
 

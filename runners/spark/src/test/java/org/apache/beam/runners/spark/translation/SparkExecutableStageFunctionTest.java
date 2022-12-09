@@ -269,6 +269,7 @@ public class SparkExecutableStageFunctionTest {
         contextFactory,
         Collections.emptyMap(),
         metricsAccumulator,
-        null);
+        null,
+        "test");
   }
 }

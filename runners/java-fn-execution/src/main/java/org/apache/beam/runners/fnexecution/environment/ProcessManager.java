@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import static org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory.getCurrentProcessId;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Charsets;
@@ -121,7 +122,7 @@ public class ProcessManager {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    LOG.info("==> ARWINLOGS: ({}) Starting SDK Harness process for Worker ID: {}! {}", hostname, id, command);
+    LOG.info("==> ARWINLOGS: ({}) ({}) Starting SDK Harness process for Worker ID: {}! {}", hostname, getCurrentProcessId(), id, command);
     if (true) {
       LOG.debug(
           "==> DEBUG enabled: Inheriting stdout/stderr of process (adjustable in ProcessManager)");

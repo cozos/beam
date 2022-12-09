@@ -99,6 +99,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       sideInputs;
   private final MetricsContainerStepMapAccumulator metricsAccumulator;
   private final Coder windowCoder;
+  private String tag;
   private final JobInfo jobInfo;
 
   private transient InMemoryBagUserStateFactory bagUserStateHandlerFactory;
@@ -112,7 +113,8 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       SparkExecutableStageContextFactory contextFactory,
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
       MetricsContainerStepMapAccumulator metricsAccumulator,
-      Coder windowCoder) {
+      Coder windowCoder,
+      String tag) {
     this.pipelineOptions = pipelineOptions;
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
@@ -121,6 +123,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
     this.sideInputs = sideInputs;
     this.metricsAccumulator = metricsAccumulator;
     this.windowCoder = windowCoder;
+    this.tag = tag;
   }
 
   /** Call the executable stage function on the values of a PairRDD, ignoring the key. */
@@ -140,7 +143,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       return Collections.emptyIterator();
     }
 
-    try (ExecutableStageContext stageContext = contextFactory.get(jobInfo)) {
+    try (ExecutableStageContext stageContext = contextFactory.get(jobInfo, this.tag)) {
       ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       try (StageBundleFactory stageBundleFactory =
           stageContext.getStageBundleFactory(executableStage)) {

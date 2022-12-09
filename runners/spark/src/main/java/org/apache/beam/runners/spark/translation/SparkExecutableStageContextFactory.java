@@ -20,15 +20,22 @@ package org.apache.beam.runners.spark.translation;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableStageContextFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory.getCurrentProcessId;
+import static org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory.getHostName;
 
 /**
  * Singleton class that contains one {@link ExecutableStageContext.Factory} per job. Assumes it is
  * safe to release the backing environment asynchronously.
  */
 public class SparkExecutableStageContextFactory implements ExecutableStageContext.Factory {
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
 
   private static final SparkExecutableStageContextFactory instance =
       new SparkExecutableStageContextFactory();
@@ -43,6 +50,11 @@ public class SparkExecutableStageContextFactory implements ExecutableStageContex
 
   public static SparkExecutableStageContextFactory getInstance() {
     return instance;
+  }
+
+  public ExecutableStageContext get(JobInfo jobInfo, String tag) {
+    LOG.info("==> ARWINLOGS: ({}) ({}) ({}) ({}) Creating new DefaultJobBundleFactory", getHostName(), getCurrentProcessId(), jobInfo.jobId(), jobInfo.jobName());
+    return get(jobInfo);
   }
 
   @Override

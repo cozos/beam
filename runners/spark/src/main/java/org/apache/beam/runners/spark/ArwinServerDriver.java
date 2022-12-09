@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
+import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.server.ServerFactory;
@@ -50,6 +51,8 @@ public class ArwinServerDriver extends JobServerDriver {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+    LOG.info("PROCESS ID: {}", DefaultJobBundleFactory.getCurrentProcessId());
+
     LOG.info("We are in Arwin's world!");
 
     PipelineOptions options = PipelineOptionsFactory.create();

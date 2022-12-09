@@ -22,6 +22,11 @@ import com.google.auto.value.AutoValue;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -88,6 +93,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.management.VMManagement;
 
 /**
  * A {@link JobBundleFactory} for which the implementation can specify a custom {@link
@@ -118,9 +124,37 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final boolean loadBalanceBundles;
   /** Clients which were evicted due to environment expiration but still had pending references. */
   private final Set<WrappedSdkHarnessClient> evictedActiveClients;
+  private final JobInfo jobInfo;
 
   private boolean closed;
-  private String hostname;
+
+  public static int getCurrentProcessId() {
+    try {
+      RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
+      Field jvm = runtime.getClass().getDeclaredField("jvm");
+      jvm.setAccessible(true);
+
+      VMManagement management = (VMManagement) jvm.get(runtime);
+      Method method = management.getClass().getDeclaredMethod("getProcessId");
+      method.setAccessible(true);
+
+      return (Integer) method.invoke(management);
+    } catch(NoSuchFieldException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static String getHostName() {
+    try {
+      String hostname = new BufferedReader(
+              new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream(), Charsets.UTF_8))
+              .readLine();
+      hostname = Iterables.get(Splitter.on(' ').split(hostname), 0);
+      return hostname;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   public static DefaultJobBundleFactory create(JobInfo jobInfo) {
     PipelineOptions pipelineOptions =
@@ -151,16 +185,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.clientPool = MapControlClientPool.create();
     this.stageIdGenerator = () -> factoryId + "-" + stageIdSuffixGenerator.getId();
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
+    this.jobInfo = jobInfo;
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
-    try {
-      this.hostname = new BufferedReader(
-        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream(), Charsets.UTF_8))
-       .readLine();
-       this.hostname = Iterables.get(Splitter.on(' ').split(hostname), 0);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    LOG.info("==> ARWINLOGS: ({}) loadBalanceBundles is: {}", this.hostname, this.loadBalanceBundles);
+    LOG.info("==> ARWINLOGS: ({}) ({}) ({}) loadBalanceBundles is: {}", getHostName(), getCurrentProcessId(), jobInfo.jobId(), this.loadBalanceBundles);
     this.environmentCaches =
         createEnvironmentCaches(
             serverFactory -> createServerInfo(jobInfo, serverFactory),
@@ -182,16 +209,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = stageIdGenerator;
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
-
-    try {
-      this.hostname = new BufferedReader(
-        new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname", "-I"}).getInputStream(), Charsets.UTF_8))
-       .readLine();
-      this.hostname = Iterables.get(Splitter.on(' ').split(hostname), 0);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    LOG.info("==> ARWINLOGS: ({}) loadBalanceBundles is: {}", hostname, this.loadBalanceBundles);
+    this.jobInfo = jobInfo;
+    LOG.info("==> ARWINLOGS: ({}) ({}) ({}) loadBalanceBundles is: {}", getHostName(), getCurrentProcessId(), jobInfo.jobId(), this.loadBalanceBundles);
     this.environmentCaches =
         createEnvironmentCaches(serverFactory -> serverInfo, getMaxEnvironmentClients(jobInfo));
     this.availableCachesSemaphore = new Semaphore(environmentCaches.size(), true);
@@ -212,7 +231,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private ImmutableList<EnvironmentCacheAndLock> createEnvironmentCaches(
       ThrowingFunction<ServerFactory, ServerInfo> serverInfoCreator, int count) {
 
-    LOG.info("==> ARWINLOGS: ({}) Creating Environment Cache with SDK Harnesses: {}", this.hostname, count);
+    LOG.info("==> ARWINLOGS: ({}) ({}) ({}) Creating Environment Cache with SDK Harnesses: {}", getHostName(), getCurrentProcessId(), jobInfo.jobId(), count);
     ImmutableList.Builder<EnvironmentCacheAndLock> caches = ImmutableList.builder();
     for (int i = 0; i < count; i++) {
 
@@ -246,8 +265,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                           notification.getKey(),
                           refCount);
                       LOG.info(
-                          "==> ARWINLOGS: ({}) Evicting SDK Harness {} with {} remaining bundle references",
-                          this.hostname,
+                          "==> ARWINLOGS: ({}) ({}) Evicting SDK Harness {} with {} remaining bundle references",
+                          getHostName(),
+                          getCurrentProcessId(),
                           client.getEnvironment().toString(),
                           refCount);
                       evictedActiveClients.add(client);
