@@ -242,6 +242,16 @@ public class ProcessManager {
     @Override
     @SuppressFBWarnings("SWL_SLEEP_WITH_LOCK_HELD")
     public void run() {
+      String hostname2;
+      try {
+         hostname2 = new BufferedReader(
+          new InputStreamReader(Runtime.getRuntime().exec(new String[]{"hostname2", "-I"}).getInputStream(), Charsets.UTF_8))
+         .readLine();
+         hostname2 = Iterables.get(Splitter.on(' ').split(hostname2), 0);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      LOG.info("==> ARWINLOGS: ({}) JVM shutting off. Initializing Shutdown Hook.", hostname2);
       synchronized (ALL_PROCESS_MANAGERS) {
         ALL_PROCESS_MANAGERS.forEach(ProcessManager::stopAllProcesses);
         // If any processes are still alive, wait for 200 ms.
@@ -255,6 +265,7 @@ public class ProcessManager {
           // Ignore interruptions here to proceed with killing processes
         } finally {
           ALL_PROCESS_MANAGERS.forEach(ProcessManager::killAllProcesses);
+          LOG.info("==> ARWINLOGS: ({}) Finished JVM Shutdown.", hostname2);
         }
       }
     }
