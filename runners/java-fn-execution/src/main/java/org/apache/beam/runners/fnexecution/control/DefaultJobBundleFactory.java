@@ -121,7 +121,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       pr.waitFor();
 
       if (pr.exitValue()==0) {
-        BufferedReader outReader=new BufferedReader(new InputStreamReader(pr.getInputStream()));
+        BufferedReader outReader= new BufferedReader(new InputStreamReader(pr.getInputStream(), Charsets.UTF_8));
         return outReader.readLine().trim();
       } else {
         throw new RuntimeException("Error while getting PID");
