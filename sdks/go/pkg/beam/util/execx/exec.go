@@ -17,6 +17,8 @@
 package execx
 
 import (
+	"io"
+	"log"
 	"os"
 	"os/exec"
 )
@@ -42,4 +44,28 @@ func ExecuteEnv(env map[string]string, prog string, args ...string) error {
 	}
 
 	return cmd.Run()
+}
+
+func ExecuteCaptureOutput(env map[string]string, prog string, args ...string) (io.ReadCloser, io.ReadCloser, *exec.Cmd) {
+	cmd := exec.Command(prog, args...)
+	cmd.Stdin = os.Stdin
+	if env != nil {
+		cmd.Env = os.Environ()
+		for k, v := range env {
+			cmd.Env = append(cmd.Env, k+"="+v)
+		}
+	}
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+	return stdoutPipe, stderrPipe, cmd
 }
