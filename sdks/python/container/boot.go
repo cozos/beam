@@ -18,10 +18,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -33,6 +35,8 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	fn_log "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
@@ -41,6 +45,13 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/nightlyone/lockfile"
 )
+
+// Copied from sdks/go/pkg/beam/core/runtime/harness/logging.go because it's private and I don't want to mess with it.
+type remoteLoggingKey string
+
+const DefaultRemoteLoggingHook = "default_remote_logging"
+
+var loggingEndpointCtxKey = remoteLoggingKey(DefaultRemoteLoggingHook)
 
 var (
 	acceptableWhlSpecs []string
@@ -74,7 +85,6 @@ const (
 
 func main() {
 	flag.Parse()
-
 	if *setupOnly {
 		if err := processArtifactsInSetupOnlyMode(); err != nil {
 			log.Fatalf("Setup unsuccessful with error: %v", err)
@@ -103,7 +113,6 @@ func main() {
 	}
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
-
 	info, err := provision.Info(ctx, *provisionEndpoint)
 	if err != nil {
 		log.Fatalf("Failed to obtain provisioning information: %v", err)
@@ -129,6 +138,12 @@ func main() {
 	}
 	if *controlEndpoint == "" {
 		log.Fatal("No control endpoint provided.")
+	}
+
+	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
+	ctx, err = hooks.RunInitHooks(ctx)
+	if err != nil {
+		log.Fatalf("Failed to init hooks: %v", err)
 	}
 
 	log.Printf("Initializing python harness: %v", strings.Join(os.Args, " "))
@@ -211,11 +226,56 @@ func main() {
 	for _, workerId := range workerIds {
 		go func(workerId string) {
 			log.Printf("Executing: python %v", strings.Join(args, " "))
-			log.Fatalf("Python exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "python", args...))
+			fn_log.Infof(ctx, "Starting Python SDK: python %v", strings.Join(args, " "))
+			stdoutPipe, stderrPipe, cmd := execx.ExecuteCaptureOutput(
+				map[string]string{"WORKER_ID": workerId}, "python", args...,
+			)
+
+			go sendStdoutToFnApi(ctx, stdoutPipe)
+			go sendStderrToFnApi(ctx, stderrPipe)
+
+			if err := cmd.Wait(); err != nil {
+				fn_log.Fatalf(ctx, "Python exited: %v", err)
+			} else {
+				fn_log.Infof(ctx, "Python exited normally without errors")
+			}
 			wg.Done()
 		}(workerId)
 	}
 	wg.Wait()
+}
+
+func sendStdoutToFnApi(ctx context.Context, stdout io.ReadCloser) {
+	scanner := bufio.NewScanner(stdout)
+	const maxCapacity int = bufio.MaxScanTokenSize * 10 // Our messages can probably be pretty big
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
+	for scanner.Scan() {
+		fn_log.Info(ctx, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		fn_log.Errorf(ctx, "Reading stdout from Python worker failed due to: %v", err)
+	}
+}
+
+func sendStderrToFnApi(ctx context.Context, stderr io.ReadCloser) {
+	scanner := bufio.NewScanner(stderr)
+	const maxCapacity int = bufio.MaxScanTokenSize * 10 // Our messages can probably be pretty big
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
+	for scanner.Scan() {
+		// TODO: We are assuming that all of stderr contains FATAL messages but it can also contain warning and
+		// diagnostic messages. We should probably only set it to FATAL if the Python program returned a non-zero
+		// exit code. Problem is we don't actually know until the end whether or not it failed...
+		fn_log.Fatal(ctx, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		fn_log.Errorf(ctx, "Reading stderr from Python worker failed due to: %v", err)
+	}
 }
 
 // setup wheel specs according to installed python version
