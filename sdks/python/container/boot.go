@@ -288,7 +288,7 @@ func sendAVBacktracesToFnApi(ctx context.Context) {
 		fn_log.Fatalf(ctx, "Failed to ls BACKTRACE_DIR '%v' due to: %v", backtraceDir, err)
 	}
 
-	fn_log.Infof(ctx, "Logging %v AV backtrace logfiles in BACKTRACE_DIR '%v'", len(fileInfos), backtraceDir)
+	fn_log.Infof(ctx, "Logging AV backtrace logfiles %v in BACKTRACE_DIR '%v'", fileInfos, backtraceDir)
 	for _, fileInfo := range fileInfos {
 		if fileInfo.IsDir() {
 			// We don't write backtrace logs in nested folders
