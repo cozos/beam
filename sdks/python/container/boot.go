@@ -35,7 +35,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	harness "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 	fn_log "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
@@ -62,13 +62,14 @@ var (
 
 	// Contract: https://s.apache.org/beam-fn-api-container-contract.
 
-	workerPool        = flag.Bool("worker_pool", false, "Run as worker pool (optional).")
-	id                = flag.String("id", "", "Local identifier (required).")
-	loggingEndpoint   = flag.String("logging_endpoint", "", "Logging endpoint (required).")
-	artifactEndpoint  = flag.String("artifact_endpoint", "", "Artifact endpoint (required).")
-	provisionEndpoint = flag.String("provision_endpoint", "", "Provision endpoint (required).")
-	controlEndpoint   = flag.String("control_endpoint", "", "Control endpoint (required).")
-	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
+	workerPool          = flag.Bool("worker_pool", false, "Run as worker pool (optional).")
+	id                  = flag.String("id", "", "Local identifier (required).")
+	loggingEndpoint     = flag.String("logging_endpoint", "", "Logging endpoint (required).")
+	artifactEndpoint    = flag.String("artifact_endpoint", "", "Artifact endpoint (required).")
+	provisionEndpoint   = flag.String("provision_endpoint", "", "Provision endpoint (required).")
+	controlEndpoint     = flag.String("control_endpoint", "", "Control endpoint (required).")
+	semiPersistDir      = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
+	installDependencies = flag.Bool("install_dependencies", true, "Install additional dependencies")
 )
 
 const (
@@ -140,11 +141,7 @@ func main() {
 		log.Fatal("No control endpoint provided.")
 	}
 
-	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
-	ctx, err = hooks.RunInitHooks(ctx)
-	if err != nil {
-		log.Fatalf("Failed to init hooks: %v", err)
-	}
+	harness.SetupRemoteLogging(ctx, *loggingEndpoint)
 
 	log.Printf("Initializing python harness: %v", strings.Join(os.Args, " "))
 
@@ -188,10 +185,12 @@ func main() {
 	}
 
 	workerPoolId := os.Getenv(workerPoolIdEnv)
-	if workerPoolId != "" {
-		multiProcessExactlyOnce(materializeArtifactsFunc, "beam.install.complete."+workerPoolId)
-	} else {
-		materializeArtifactsFunc()
+	if *installDependencies {
+		if workerPoolId != "" {
+			multiProcessExactlyOnce(materializeArtifactsFunc, "beam.install.complete."+workerPoolId)
+		} else {
+			materializeArtifactsFunc()
+		}
 	}
 
 	// (3) Invoke python
@@ -215,6 +214,8 @@ func main() {
 		}
 	}
 
+	setupAVBacktraceDir(ctx)
+
 	args := []string{
 		"-m",
 		sdkHarnessEntrypoint,
@@ -225,56 +226,88 @@ func main() {
 	wg.Add(len(workerIds))
 	for _, workerId := range workerIds {
 		go func(workerId string) {
+			defer wg.Done()
 			log.Printf("Executing: python %v", strings.Join(args, " "))
 			fn_log.Infof(ctx, "Starting Python SDK: python %v", strings.Join(args, " "))
 			stdoutPipe, stderrPipe, cmd := execx.ExecuteCaptureOutput(
 				map[string]string{"WORKER_ID": workerId}, "python", args...,
 			)
 
-			go sendStdoutToFnApi(ctx, stdoutPipe)
-			go sendStderrToFnApi(ctx, stderrPipe)
+			wg.Add(1)
+			go drainToFnLoggingAsync(ctx, stdoutPipe, fn_log.SevInfo, &wg)
+			wg.Add(1)
+			go drainToFnLoggingAsync(ctx, stderrPipe, fn_log.SevInfo, &wg)
 
 			if err := cmd.Wait(); err != nil {
-				fn_log.Fatalf(ctx, "Python exited: %v", err)
+				fn_log.Output(ctx, fn_log.SevFatal, 1, fmt.Sprintf("Python exited: %v", err))
+				sendAVBacktracesToFnApi(ctx)
+				os.Exit(1)
 			} else {
-				fn_log.Infof(ctx, "Python exited normally without errors")
+				fn_log.Info(ctx, "Python exited normally without errors")
+				// Not sure if this should be exit code 0. The open source version uses exit code 1 via log.Fatal
+				os.Exit(1)
 			}
-			wg.Done()
 		}(workerId)
 	}
 	wg.Wait()
 }
 
-func sendStdoutToFnApi(ctx context.Context, stdout io.ReadCloser) {
-	scanner := bufio.NewScanner(stdout)
+func drainToFnLoggingAsync(ctx context.Context, file io.ReadCloser, sev fn_log.Severity, wg *sync.WaitGroup) {
+	defer wg.Done()
+	drainToFnLogging(ctx, file, sev)
+}
+
+func drainToFnLogging(ctx context.Context, file io.ReadCloser, sev fn_log.Severity) {
+	scanner := bufio.NewScanner(file)
 	const maxCapacity int = bufio.MaxScanTokenSize * 10 // Our messages can probably be pretty big
 	buf := make([]byte, maxCapacity)
 	scanner.Buffer(buf, maxCapacity)
 
 	for scanner.Scan() {
-		fn_log.Info(ctx, scanner.Text())
+		// Use 'fn_log.Output' because calling 'fn_log.Fatal' comes with a panic()
+		fn_log.Output(ctx, sev, 1, scanner.Text())
 	}
 
 	if err := scanner.Err(); err != nil {
-		fn_log.Errorf(ctx, "Reading stdout from Python worker failed due to: %v", err)
+		fn_log.Errorf(ctx, "Reading stdout/stderr from Python worker failed due to: %v", err)
 	}
 }
 
-func sendStderrToFnApi(ctx context.Context, stderr io.ReadCloser) {
-	scanner := bufio.NewScanner(stderr)
-	const maxCapacity int = bufio.MaxScanTokenSize * 10 // Our messages can probably be pretty big
-	buf := make([]byte, maxCapacity)
-	scanner.Buffer(buf, maxCapacity)
-
-	for scanner.Scan() {
-		// TODO: We are assuming that all of stderr contains FATAL messages but it can also contain warning and
-		// diagnostic messages. We should probably only set it to FATAL if the Python program returned a non-zero
-		// exit code. Problem is we don't actually know until the end whether or not it failed...
-		fn_log.Fatal(ctx, scanner.Text())
+func setupAVBacktraceDir(ctx context.Context) {
+	backtraceDir, exists := os.LookupEnv("BACKTRACE_DIR")
+	if !exists {
+		fn_log.Fatal(ctx, "BACKTRACE_DIR env var (for AV backtraces) is not set but required")
 	}
 
-	if err := scanner.Err(); err != nil {
-		fn_log.Errorf(ctx, "Reading stderr from Python worker failed due to: %v", err)
+	if err := os.MkdirAll(backtraceDir, 0644); err != nil {
+		fn_log.Fatalf(ctx, "Failed to create BACKTRACE_DIR '%v' due to: %v", backtraceDir, err)
+	}
+}
+
+func sendAVBacktracesToFnApi(ctx context.Context) {
+	backtraceDir, exists := os.LookupEnv("BACKTRACE_DIR")
+	if !exists {
+		fn_log.Fatal(ctx, "BACKTRACE_DIR env var (for AV backtraces) is not set but required")
+	}
+
+	fileInfos, err := ioutil.ReadDir(backtraceDir)
+	if err != nil {
+		fn_log.Fatalf(ctx, "Failed to ls BACKTRACE_DIR '%v' due to: %v", backtraceDir, err)
+	}
+
+	fn_log.Infof(ctx, "Logging %v AV backtrace logfiles in BACKTRACE_DIR '%v'", len(fileInfos), backtraceDir)
+	for _, fileInfo := range fileInfos {
+		if fileInfo.IsDir() {
+			// We don't write backtrace logs in nested folders
+			continue
+		}
+
+		path := filepath.Join(backtraceDir, fileInfo.Name())
+		file, err := os.Open(path)
+		if err != nil {
+			fn_log.Fatalf(ctx, "Failed to open backtrace logfile '%v' due to: %v", path, err)
+		}
+		drainToFnLogging(ctx, file, fn_log.SevFatal)
 	}
 }
 

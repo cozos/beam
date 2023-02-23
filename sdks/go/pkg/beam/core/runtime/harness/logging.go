@@ -110,7 +110,7 @@ func init() {
 		return hooks.Hook{
 			Init: func(ctx context.Context) (context.Context, error) {
 				loggingEndpoint := ctx.Value(loggingEndpointCtxKey)
-				setupRemoteLogging(ctx, loggingEndpoint.(string))
+				SetupRemoteLogging(ctx, loggingEndpoint.(string))
 				return ctx, nil
 			},
 		}
@@ -120,7 +120,7 @@ func init() {
 
 // setupRemoteLogging redirects local log messages to FnHarness. It will
 // try to reconnect, if a connection goes bad. Falls back to stdout.
-func setupRemoteLogging(ctx context.Context, endpoint string) {
+func SetupRemoteLogging(ctx context.Context, endpoint string) {
 	buf := make(chan *fnpb.LogEntry, 2000)
 	log.SetLogger(&logger{out: buf})
 
@@ -152,12 +152,14 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 		return err
 	}
 	defer conn.Close()
+	fmt.Fprintf(os.Stderr, "Boot.go harness successfully established connection to Fn Log gRPC endpoint.\n")
 
 	client, err := fnpb.NewBeamFnLoggingClient(conn).Logging(ctx)
 	if err != nil {
 		return err
 	}
 	defer client.CloseSend()
+	fmt.Fprintf(os.Stderr, "Boot.go harness successfully created Fn Log API client.\n")
 
 	for msg := range w.buffer {
 		// fmt.Fprintf(os.Stderr, "REMOTE: %v\n", proto.MarshalTextString(msg))
