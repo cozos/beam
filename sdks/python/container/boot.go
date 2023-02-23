@@ -46,13 +46,6 @@ import (
 	"github.com/nightlyone/lockfile"
 )
 
-// Copied from sdks/go/pkg/beam/core/runtime/harness/logging.go because it's private and I don't want to mess with it.
-type remoteLoggingKey string
-
-const DefaultRemoteLoggingHook = "default_remote_logging"
-
-var loggingEndpointCtxKey = remoteLoggingKey(DefaultRemoteLoggingHook)
-
 var (
 	acceptableWhlSpecs []string
 
